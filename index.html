@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Suspicious Message Checker — Verify Before You Act</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', "system-ui", "sans-serif"],
+            mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
+          },
+          colors: {
+            canvas: "#FAF8F5",
+            ink: "#0F172A",
+            trust: {
+              50: "#F0F9FF",
+              100: "#E0F2FE",
+              600: "#0284C7",
+              700: "#0369A1",
+              900: "#0C4A6E",
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      background-color: #FAF8F5;
+      color: #0F172A;
+    }
+
+    h1, h2, h3, h4 {
+      text-wrap: balance;
+    }
+
+    p, li, .pretty-text {
+      text-wrap: pretty;
+    }
+
+    .flag-highlight {
+      border-radius: 0.375rem;
+      padding: 0.125rem 0.375rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 150ms ease, box-shadow 150ms ease;
+      display: inline;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .flag-highlight:hover,
+    .flag-highlight:focus-visible {
+      box-shadow: 0 0 0 2px #0369A1;
+      outline: none;
+    }
+
+    .flag-card-pulse {
+      animation: cardPulse 1.1s ease-out;
+    }
+
+    @keyframes cardPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(3, 105, 161, 0.45);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(3, 105, 161, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(3, 105, 161, 0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-sky-100 selection:text-sky-900">
+  <!-- Subtle warm top accent bar -->
+  <div class="h-1.5 w-full bg-gradient-to-r from-sky-700 via-sky-500 to-teal-600"></div>
+
+  <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
+    <!-- Header -->
+    <header class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-start gap-3.5">
+        <div
+          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white shadow-sm"
+          aria-hidden="true"
+        >
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"
+            />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Suspicious Message Checker
+          </h1>
+          <p class="mt-1 text-sm text-slate-600 sm:text-base">
+            Pause before clicking or replying. Paste a text, email, or alert to inspect warning signs safely.
+          </p>
+        </div>
+      </div>
+
+      <div class="inline-flex items-center gap-2 self-start rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-600 shadow-xs sm:self-center">
+        <span class="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true"></span>
+        <span>Zero-storage privacy &middot; 1,500 char cap</span>
+      </div>
+    </header>
+
+    <!-- One-Click Sample Message Pills -->
+    <section aria-label="Sample messages" class="mb-6">
+      <div class="mb-2.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <svg class="h-4 w-4 text-sky-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+        </svg>
+        <span>Test Sample Message</span>
+      </div>
+
+      <div class="flex flex-wrap gap-2.5" id="samplePills">
+        <button
+          type="button"
+          data-sample="bank"
+          class="sample-pill cursor-pointer inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/80 px-4 py-2 text-left text-xs font-semibold text-rose-900 transition hover:border-rose-300 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700 sm:text-sm"
+        >
+          <span class="h-2 w-2 shrink-0 rounded-full bg-rose-600" aria-hidden="true"></span>
+          <span>Fake Bank Urgent Freeze + Link (High Risk)</span>
+        </button>
+
+        <button
+          type="button"
+          data-sample="tech"
+          class="sample-pill cursor-pointer inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50/80 px-4 py-2 text-left text-xs font-semibold text-amber-900 transition hover:border-amber-300 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700 sm:text-sm"
+        >
+          <span class="h-2 w-2 shrink-0 rounded-full bg-rose-600" aria-hidden="true"></span>
+          <span>Fake Tech Support Asking for OTP / Remote Access (High Risk)</span>
+        </button>
+
+        <button
+          type="button"
+          data-sample="delivery"
+          class="sample-pill cursor-pointer inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-4 py-2 text-left text-xs font-semibold text-emerald-900 transition hover:border-emerald-300 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700 sm:text-sm"
+        >
+          <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-600" aria-hidden="true"></span>
+          <span>Normal Delivery Notification Without Links/Requests (Low Risk)</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Message Input Form Card -->
+    <main class="space-y-8">
+      <section class="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-sm sm:p-7">
+        <form id="analyzerForm" class="space-y-5" novalidate>
+          <div>
+            <label for="claimedSender" class="block text-sm font-semibold text-slate-800">
+              Who does this message claim to be from?
+            </label>
+            <input
+              id="claimedSender"
+              name="claimed_sender"
+              type="text"
+              maxlength="200"
+              placeholder="e.g., Chase Fraud Alert, Apple Support, UPS Delivery"
+              class="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50/60 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition focus:border-sky-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-600/20"
+            />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between gap-2">
+              <label for="messageInput" class="block text-sm font-semibold text-slate-800">
+                Suspicious Message Text
+              </label>
+              <span id="charCounter" class="font-mono text-xs text-slate-500">
+                0 / 1,500
+              </span>
+            </div>
+            <textarea
+              id="messageInput"
+              name="message"
+              rows="5"
+              maxlength="1500"
+              required
+              placeholder="Paste the SMS, email, or chat message you received..."
+              class="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50/60 px-4 py-3 text-sm leading-relaxed text-slate-900 placeholder-slate-400 transition focus:border-sky-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-600/20"
+            ></textarea>
+            <p id="formError" class="mt-2 hidden text-sm font-medium text-rose-700" role="alert"></p>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div class="flex flex-wrap items-center gap-3">
+              <button
+                id="analyzeBtn"
+                type="submit"
+                class="cursor-pointer inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <svg id="btnIcon" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+                <svg id="btnSpinner" class="hidden h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span id="btnLabel">Check Message Safety</span>
+              </button>
+
+              <button
+                id="clearBtn"
+                type="button"
+                class="cursor-pointer inline-flex min-h-[44px] items-center justify-center rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700 focus-visible:ring-offset-2"
+              >
+                Clear
+              </button>
+            </div>
+
+            <p class="text-xs text-slate-500">
+              Never opens links or contacts senders automatically.
+            </p>
+          </div>
+        </form>
+      </section>
+
+      <!-- Results Container -->
+      <div id="resultsSection" class="hidden space-y-6" aria-live="polite">
+        <!-- 1. Risk Summary Banner -->
+        <section id="riskSummaryCard" class="rounded-2xl border bg-white p-5 shadow-sm sm:p-7">
+          <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span
+                  id="riskLevelBadge"
+                  class="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-sm font-bold"
+                ></span>
+                <span
+                  id="engineBadge"
+                  class="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-slate-700"
+                ></span>
+              </div>
+
+              <div class="text-sm text-slate-600">
+                Claimed sender:
+                <span id="resultSender" class="font-semibold text-slate-900"></span>
+              </div>
+
+              <p id="resultSummary" class="pretty-text max-w-2xl text-base leading-relaxed text-slate-800"></p>
+            </div>
+
+            <!-- Risk Score Gauge -->
+            <div class="flex shrink-0 flex-col items-start rounded-xl border border-stone-200/80 bg-stone-50/70 px-5 py-4 sm:min-w-[170px] sm:items-end">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Risk Score
+              </span>
+              <div class="mt-1 flex items-baseline gap-1">
+                <span id="riskScoreValue" class="text-3xl font-extrabold tabular-nums text-slate-900">0</span>
+                <span class="text-sm font-medium text-slate-500">/ 100</span>
+              </div>
+              <div class="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-stone-200">
+                <div id="riskScoreBar" class="h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Annotated Message Inspector -->
+        <section class="rounded-2xl border border-stone-200/90 bg-white p-5 shadow-sm sm:p-7">
+          <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">
+                Annotated Message Inspector
+              </h2>
+              <p class="text-sm text-slate-600">
+                Every flagged phrase below is highlighted verbatim inside the original message. Click a highlight to jump to its explanation.
+              </p>
+            </div>
+            <span
+              id="flagCountPill"
+              class="self-start rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold text-slate-700 sm:self-center"
+            ></span>
+          </div>
+
+          <!-- Highlighted Message Box -->
+          <div
+            id="annotatedMessageBox"
+            class="rounded-xl border border-stone-200 bg-stone-50/80 p-4 font-mono text-sm leading-7 text-slate-800 whitespace-pre-wrap break-words sm:p-5"
+          ></div>
+
+          <!-- Red Flag Explanations -->
+          <div id="redFlagsContainer" class="mt-5 space-y-3"></div>
+        </section>
+
+        <!-- 3. Interactive Safe Verification Checklist -->
+        <section class="rounded-2xl border border-sky-200/80 bg-gradient-to-br from-white to-sky-50/50 p-5 shadow-sm sm:p-7">
+          <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">
+                How to Check Safely Before Acting
+              </h2>
+              <p class="text-sm text-slate-600">
+                Work through these steps before clicking links, sharing codes, or sending money.
+              </p>
+            </div>
+            <span
+              id="checklistProgress"
+              class="inline-flex items-center gap-1.5 self-start rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-900 sm:self-center"
+            >
+              0 of 0 steps checked
+            </span>
+          </div>
+
+          <ul id="safeStepsList" class="space-y-2.5"></ul>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const SAMPLES = {
+      bank: {
+        claimed_sender: "Chase Fraud Alert",
+        message:
+          "URGENT: Your Chase checking account has been temporarily frozen due to suspicious activity. Verify your identity within 24 hours at https://bit.ly/chase-secure-login-verify to avoid permanent account closure.",
+      },
+      tech: {
+        claimed_sender: "Apple Support <apple-security-help@gmail.com>",
+        message:
+          "Apple Security Alert: Unauthorized purchase of $899.00 detected on your Apple ID. Reply immediately to apple-security-help@gmail.com with your 6-digit OTP verification code and install AnyDesk so our technician can cancel this charge.",
+      },
+      delivery: {
+        claimed_sender: "UPS Delivery Updates",
+        message:
+          "UPS Update: Your scheduled package ending in 6784 is out for delivery today between 2:00 PM and 5:00 PM. No signature or payment is required. Check your order status anytime inside the official UPS mobile app.",
+      },
+    };
+
+    const CATEGORY_STYLES = {
+      "Manufactured Urgency": {
+        mark: "bg-amber-200/80 text-amber-950 border-b-2 border-amber-500",
+        badge: "bg-amber-100 text-amber-900 border-amber-200",
+        cardBorder: "border-amber-200/90",
+      },
+      "Suspicious Link": {
+        mark: "bg-rose-200/80 text-rose-950 border-b-2 border-rose-500",
+        badge: "bg-rose-100 text-rose-900 border-rose-200",
+        cardBorder: "border-rose-200/90",
+      },
+      "Credential Request": {
+        mark: "bg-red-200/85 text-red-950 border-b-2 border-red-600",
+        badge: "bg-red-100 text-red-900 border-red-200",
+        cardBorder: "border-red-200/90",
+      },
+      "Unofficial Channel": {
+        mark: "bg-orange-200/80 text-orange-950 border-b-2 border-orange-500",
+        badge: "bg-orange-100 text-orange-900 border-orange-200",
+        cardBorder: "border-orange-200/90",
+      },
+      "Social Engineering": {
+        mark: "bg-purple-200/80 text-purple-950 border-b-2 border-purple-500",
+        badge: "bg-purple-100 text-purple-900 border-purple-200",
+        cardBorder: "border-purple-200/90",
+      },
+    };
+
+    const form = document.getElementById("analyzerForm");
+    const claimedSenderEl = document.getElementById("claimedSender");
+    const messageInputEl = document.getElementById("messageInput");
+    const charCounterEl = document.getElementById("charCounter");
+    const formErrorEl = document.getElementById("formError");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const btnIcon = document.getElementById("btnIcon");
+    const btnSpinner = document.getElementById("btnSpinner");
+    const btnLabel = document.getElementById("btnLabel");
+    const clearBtn = document.getElementById("clearBtn");
+    const resultsSection = document.getElementById("resultsSection");
+
+    function updateCharCounter() {
+      const len = messageInputEl.value.length;
+      charCounterEl.textContent = `${len.toLocaleString()} / 1,500`;
+      if (len >= 1450) {
+        charCounterEl.classList.add("text-amber-700", "font-semibold");
+      } else {
+        charCounterEl.classList.remove("text-amber-700", "font-semibold");
+      }
+    }
+
+    function setLoading(isLoading) {
+      analyzeBtn.disabled = isLoading;
+      btnIcon.classList.toggle("hidden", isLoading);
+      btnSpinner.classList.toggle("hidden", !isLoading);
+      btnLabel.textContent = isLoading ? "Analyzing..." : "Check Message Safety";
+    }
+
+    function showError(msg) {
+      formErrorEl.textContent = msg;
+      formErrorEl.classList.remove("hidden");
+    }
+
+    function hideError() {
+      formErrorEl.textContent = "";
+      formErrorEl.classList.add("hidden");
+    }
+
+    function createRiskIcon(level) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "h-4 w-4");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "2.2");
+      svg.setAttribute("aria-hidden", "true");
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+
+      if (level === "High") {
+        path.setAttribute(
+          "d",
+          "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+        );
+      } else if (level === "Medium") {
+        path.setAttribute(
+          "d",
+          "M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
+        );
+      } else {
+        path.setAttribute(
+          "d",
+          "M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+        );
+      }
+      svg.appendChild(path);
+      return svg;
+    }
+
+    function renderAnnotatedMessage(messageText, redFlags) {
+      const box = document.getElementById("annotatedMessageBox");
+      box.textContent = "";
+
+      // Compute non-overlapping verbatim ranges sorted by appearance in messageText.
+      const spans = [];
+      redFlags.forEach((flag, idx) => {
+        const quote = flag.exact_quote;
+        if (!quote) return;
+
+        let searchFrom = 0;
+        while (searchFrom < messageText.length) {
+          const foundAt = messageText.indexOf(quote, searchFrom);
+          if (foundAt === -1) break;
+          const endAt = foundAt + quote.length;
+          const overlaps = spans.some(
+            (s) => !(endAt <= s.start || foundAt >= s.end)
+          );
+          if (!overlaps) {
+            spans.push({ start: foundAt, end: endAt, flag, flagIndex: idx });
+            break;
+          }
+          searchFrom = foundAt + 1;
+        }
+      });
+
+      spans.sort((a, b) => a.start - b.start);
+
+      let cursor = 0;
+      spans.forEach((span) => {
+        if (span.start > cursor) {
+          box.appendChild(
+            document.createTextNode(messageText.slice(cursor, span.start))
+          );
+        }
+
+        const style =
+          CATEGORY_STYLES[span.flag.category] ||
+          CATEGORY_STYLES["Social Engineering"];
+        const mark = document.createElement("mark");
+        mark.className = `flag-highlight ${style.mark}`;
+        mark.tabIndex = 0;
+        mark.textContent = messageText.slice(span.start, span.end);
+        mark.title = `${span.flag.category}: Click to inspect`;
+
+        const jumpToCard = () => {
+          const card = document.getElementById(`flag-card-${span.flagIndex}`);
+          if (!card) return;
+          card.scrollIntoView({ behavior: "smooth", block: "center" });
+          card.classList.remove("flag-card-pulse");
+          void card.offsetWidth;
+          card.classList.add("flag-card-pulse");
+        };
+
+        mark.addEventListener("click", jumpToCard);
+        mark.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            jumpToCard();
+          }
+        });
+
+        box.appendChild(mark);
+        cursor = span.end;
+      });
+
+      if (cursor < messageText.length) {
+        box.appendChild(document.createTextNode(messageText.slice(cursor)));
+      }
+    }
+
+    function renderRedFlagsList(redFlags) {
+      const container = document.getElementById("redFlagsContainer");
+      const countPill = document.getElementById("flagCountPill");
+      container.textContent = "";
+
+      countPill.textContent =
+        redFlags.length === 1
+          ? "1 warning sign found"
+          : `${redFlags.length} warning signs found`;
+
+      if (redFlags.length === 0) {
+        const emptyBanner = document.createElement("div");
+        emptyBanner.className =
+          "flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900";
+        emptyBanner.appendChild(createRiskIcon("Low"));
+
+        const textWrap = document.createElement("div");
+        const title = document.createElement("p");
+        title.className = "font-semibold";
+        title.textContent = "No manipulative phrases or risky links detected";
+        const body = document.createElement("p");
+        body.className = "mt-0.5 text-emerald-800";
+        body.textContent =
+          "This message contains none of the common phishing triggers, suspicious URLs, or credential demands.";
+        textWrap.appendChild(title);
+        textWrap.appendChild(body);
+        emptyBanner.appendChild(textWrap);
+        container.appendChild(emptyBanner);
+        return;
+      }
+
+      redFlags.forEach((flag, idx) => {
+        const style =
+          CATEGORY_STYLES[flag.category] ||
+          CATEGORY_STYLES["Social Engineering"];
+
+        const card = document.createElement("article");
+        card.id = `flag-card-${idx}`;
+        card.className = `rounded-xl border ${style.cardBorder} bg-white p-4 shadow-xs transition`;
+
+        const header = document.createElement("div");
+        header.className = "flex flex-wrap items-center gap-2.5";
+
+        const badge = document.createElement("span");
+        badge.className = `inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${style.badge}`;
+        badge.textContent = flag.category;
+
+        const quoteEl = document.createElement("code");
+        quoteEl.className =
+          "rounded-md bg-stone-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-900 break-all";
+        quoteEl.textContent = `"${flag.exact_quote}"`;
+
+        header.appendChild(badge);
+        header.appendChild(quoteEl);
+
+        const explanation = document.createElement("p");
+        explanation.className = "pretty-text mt-2 text-sm leading-relaxed text-slate-700";
+        explanation.textContent = flag.explanation;
+
+        card.appendChild(header);
+        card.appendChild(explanation);
+        container.appendChild(card);
+      });
+    }
+
+    function renderChecklist(steps) {
+      const list = document.getElementById("safeStepsList");
+      const progress = document.getElementById("checklistProgress");
+      list.textContent = "";
+
+      function updateProgress() {
+        const checkboxes = list.querySelectorAll('input[type="checkbox"]');
+        const checked = Array.from(checkboxes).filter((cb) => cb.checked).length;
+        const total = checkboxes.length;
+        progress.textContent =
+          checked === total && total > 0
+            ? `All ${total} steps verified`
+            : `${checked} of ${total} steps checked`;
+
+        if (checked === total && total > 0) {
+          progress.className =
+            "inline-flex items-center gap-1.5 self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900 sm:self-center";
+        } else {
+          progress.className =
+            "inline-flex items-center gap-1.5 self-start rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-900 sm:self-center";
+        }
+      }
+
+      steps.forEach((stepText, idx) => {
+        const li = document.createElement("li");
+        const label = document.createElement("label");
+        label.htmlFor = `safe-step-${idx}`;
+        label.className =
+          "cursor-pointer flex items-start gap-3 rounded-xl border border-stone-200/90 bg-white p-3.5 transition hover:border-sky-300 hover:bg-sky-50/40";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = `safe-step-${idx}`;
+        checkbox.className =
+          "mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-stone-300 text-sky-700 focus:ring-sky-600";
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "pretty-text text-sm leading-relaxed text-slate-800 transition";
+        textSpan.textContent = stepText;
+
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) {
+            textSpan.classList.add("line-through", "text-slate-400");
+            label.classList.add("bg-emerald-50/40", "border-emerald-200");
+          } else {
+            textSpan.classList.remove("line-through", "text-slate-400");
+            label.classList.remove("bg-emerald-50/40", "border-emerald-200");
+          }
+          updateProgress();
+        });
+
+        label.appendChild(checkbox);
+        label.appendChild(textSpan);
+        li.appendChild(label);
+        list.appendChild(li);
+      });
+
+      updateProgress();
+    }
+
+    function renderResults(data, originalMessage) {
+      const summaryCard = document.getElementById("riskSummaryCard");
+      const riskBadge = document.getElementById("riskLevelBadge");
+      const engineBadge = document.getElementById("engineBadge");
+      const resultSender = document.getElementById("resultSender");
+      const resultSummary = document.getElementById("resultSummary");
+      const scoreValue = document.getElementById("riskScoreValue");
+      const scoreBar = document.getElementById("riskScoreBar");
+
+      riskBadge.textContent = "";
+      riskBadge.appendChild(createRiskIcon(data.risk_level));
+      const badgeText = document.createElement("span");
+      badgeText.textContent = `${data.risk_level} Risk`;
+      riskBadge.appendChild(badgeText);
+
+      if (data.risk_level === "High") {
+        summaryCard.className = "rounded-2xl border border-rose-200 bg-white p-5 shadow-sm sm:p-7";
+        riskBadge.className =
+          "inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-3.5 py-1 text-sm font-bold text-rose-900";
+        scoreBar.className = "h-full rounded-full bg-rose-600 transition-all duration-500";
+      } else if (data.risk_level === "Medium") {
+        summaryCard.className = "rounded-2xl border border-amber-200 bg-white p-5 shadow-sm sm:p-7";
+        riskBadge.className =
+          "inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3.5 py-1 text-sm font-bold text-amber-900";
+        scoreBar.className = "h-full rounded-full bg-amber-500 transition-all duration-500";
+      } else {
+        summaryCard.className = "rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm sm:p-7";
+        riskBadge.className =
+          "inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3.5 py-1 text-sm font-bold text-emerald-900";
+        scoreBar.className = "h-full rounded-full bg-emerald-600 transition-all duration-500";
+      }
+
+      engineBadge.textContent = data.analysis_engine;
+      resultSender.textContent = data.claimed_sender;
+      resultSummary.textContent = data.summary;
+      scoreValue.textContent = String(data.risk_score);
+      scoreBar.style.width = `${Math.max(4, Math.min(100, data.risk_score))}%`;
+
+      renderAnnotatedMessage(originalMessage, data.red_flags || []);
+      renderRedFlagsList(data.red_flags || []);
+      renderChecklist(data.safe_verification_steps || []);
+
+      resultsSection.classList.remove("hidden");
+    }
+
+    async function analyzeCurrentInput() {
+      hideError();
+      const rawMessage = messageInputEl.value.trim();
+      if (!rawMessage) {
+        showError("Please paste a message or select one of the sample pills above.");
+        messageInputEl.focus();
+        return;
+      }
+
+      const cappedMessage = rawMessage.slice(0, 1500);
+      const claimedSender = claimedSenderEl.value.trim() || "Unspecified Sender";
+
+      setLoading(true);
+      try {
+        const res = await fetch("/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: cappedMessage,
+            claimed_sender: claimedSender,
+          }),
+        });
+
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload.detail || "Unable to complete safety check.");
+        }
+
+        renderResults(payload, cappedMessage);
+      } catch (err) {
+        showError(err.message || "Network error while analyzing message. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    document.querySelectorAll(".sample-pill").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-sample");
+        const sample = SAMPLES[key];
+        if (!sample) return;
+
+        document.querySelectorAll(".sample-pill").forEach((el) => {
+          el.classList.remove("ring-2", "ring-sky-700", "ring-offset-1");
+        });
+        btn.classList.add("ring-2", "ring-sky-700", "ring-offset-1");
+
+        claimedSenderEl.value = sample.claimed_sender;
+        messageInputEl.value = sample.message;
+        updateCharCounter();
+        analyzeCurrentInput();
+      });
+    });
+
+    messageInputEl.addEventListener("input", updateCharCounter);
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      analyzeCurrentInput();
+    });
+
+    clearBtn.addEventListener("click", () => {
+      claimedSenderEl.value = "";
+      messageInputEl.value = "";
+      updateCharCounter();
+      hideError();
+      resultsSection.classList.add("hidden");
+      document.querySelectorAll(".sample-pill").forEach((el) => {
+        el.classList.remove("ring-2", "ring-sky-700", "ring-offset-1");
+      });
+      messageInputEl.focus();
+    });
+
+    updateCharCounter();
+  </script>
+</body>
+</html>

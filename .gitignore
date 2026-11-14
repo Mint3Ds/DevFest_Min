@@ -1,0 +1,20 @@
+# Environment & secret files (NEVER commit API keys)
+.env
+.env.*
+!.env.example
+
+# Python bytecode & caches
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local agent/editor tooling
+.agents/
+.DS_Store
+Thumbs.db
